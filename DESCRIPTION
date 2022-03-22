@@ -5,6 +5,10 @@ Authors@R:
     person("Ruiyang", "Li", , "rl3034@cumc.columbia.edu", role = c("aut", "cre"),
            comment = c(ORCID = "YOUR-ORCID-ID"))
 Description: What the package does (one paragraph).
+Depends:
+    glmnet,
+    knockoff,
+    MASS
 License: `use_mit_license()`, `use_gpl3_license()` or friends to pick a
     license
 Encoding: UTF-8
