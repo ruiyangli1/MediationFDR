@@ -11,18 +11,16 @@
 #' @export
 #'
 #' @examples
-#' datagen(100, 50, 0.5, 0.3)
+#' datagen(n = 100, K = 50, a = 0.5, b = 0.3)
 datagen<-function(n,K,a,b){
   alpha = rep(0,K); alpha[1:10] = a
-  gamma = 1
   beta = rep(0,K); beta[6:15] = b
+  gamma = 1
 
   X=rbinom(n,1,0.5)
   M=X%o%alpha+mvrnorm(n,mu=rep(0,K),Sigma=diag(rep(1,K)))
   Y=X*gamma+M%*%beta+rnorm(n,1)
-  #Z=NULL
-  data=data.frame(cbind(X,Y,M,Z))
-  names(data)=c("X","Y",paste("M",as.character(1:K),sep=""))
-  list(M=M,X=X,Y=Y#,Z=Z
-       )
+  colnames(M) = paste("M",as.character(1:K),sep="")
+
+  list(X=X,Y=Y,M=M)
 }
