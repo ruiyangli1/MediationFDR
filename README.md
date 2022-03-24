@@ -1,2 +1,2 @@
 # MediationFDR
-What the Package Does
+Mediator Selection Controlling For FDR
