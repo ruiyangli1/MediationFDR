@@ -10,8 +10,8 @@ MediationFDR(
   M,
   C1 = NULL,
   C2 = NULL,
-  q2 = 0.2,
-  q1 = q2,
+  q1 = 0.1,
+  q2 = 0.1,
   f_func = "Max",
   correction_method = "BH",
   weighted = TRUE,
@@ -29,9 +29,9 @@ MediationFDR(
 
 \item{C2}{confounding variables in M-Y path}
 
-\item{q2}{FDR controlled level}
-
 \item{q1}{FWER level in step 1}
+
+\item{q2}{FDR controlled level in step 2}
 
 \item{f_func}{function form of W in step 2}
 

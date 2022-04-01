@@ -8,8 +8,8 @@
 #' @param M potential mediators
 #' @param C1 confounding variables in X-M path
 #' @param C2 confounding variables in M-Y path
-#' @param q2 FDR controlled level
 #' @param q1 FWER level in step 1
+#' @param q2 FDR controlled level in step 2
 #' @param f_func function form of W in step 2
 #' @param correction_method multiple comparison correction method in step 1
 #' @param weighted whether we weight the Z statistics in step 2
@@ -25,7 +25,7 @@
 #'
 MediationFDR <- function(X, Y, M,
                          C1 = NULL, C2 = NULL,
-                         q2 = 0.2, q1 = q2,
+                         q1 = 0.1, q2 = 0.1,
                          f_func = "Max", correction_method = "BH",
                          weighted = TRUE,
                          binaryOutcome = FALSE){
