@@ -10,11 +10,11 @@ MediationFDR(
   M,
   C1 = NULL,
   C2 = NULL,
-  q1 = 0.1,
-  q2 = 0.1,
+  q1 = 0.05,
+  q2 = 0.05,
   f_func = "Max",
   correction_method = "BH",
-  weighted = TRUE,
+  weighted = FALSE,
   binaryOutcome = FALSE
 )
 }
