@@ -26,7 +26,7 @@
 MediationFDR <- function(X, Y, M,
                          C1 = NULL, C2 = NULL,
                          q1 = 0.05, q2 = 0.05,
-                         f_func = "Max", correction_method = "BH",
+                         f_func = "Max", correction_method = "holm",
                          weighted = FALSE,
                          binaryOutcome = FALSE){
   M = scale(M)

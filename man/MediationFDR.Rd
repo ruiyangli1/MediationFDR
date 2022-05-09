@@ -13,7 +13,7 @@ MediationFDR(
   q1 = 0.05,
   q2 = 0.05,
   f_func = "Max",
-  correction_method = "BH",
+  correction_method = "holm",
   weighted = FALSE,
   binaryOutcome = FALSE
 )
