@@ -44,7 +44,7 @@ MediationFDR <- function(X, Y, M,
   for (i in 1:d) {
     fit_a  <- lm(M[,ID_SIS[i]]~XC1)
     a_z[i] <- summary(fit_a)$coef[2,1]
-    a_p[i] <- anova(fit_a)[5][1,1]
+    a_p[i] <- summary(fit_a)$coef[2,4]
   }
   a_p <- p.adjust(a_p, method = correction_method)
   a_z[which(a_p > q1)] <- 0
