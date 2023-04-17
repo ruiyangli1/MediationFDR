@@ -1,0 +1,688 @@
+---
+title: "Simulation for MediationFDR"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Simulation for MediationFDR}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+
+# Data generation
+
+## Correlated mediators with defined correlation structure
+
+The example simulation experiment data (exposure X, outcome Y, and potential mediators M) was generated as follows. 
+
+For each subject $i = 1, ..., n$:
+
+* $X_i \stackrel{i.i.d}{\sim} Bernoulli(prob = 0.5)$
+* $M_{i,k} = \alpha_k X_i + e_{1_{i,k}}$, where $e_{1_{i,k}} \stackrel{i.i.d}{\sim} N(0, \Sigma), k = 1, ..., p, \Sigma$ is the variance-covariance matrix with diagonal entries 1 and off-diagonal entries $\rho$
+* $Y_i = X_i + \sum_k b_{k} M_{i,k} + e_{2_{i}}$, where $e_{2_{i}} \stackrel{i.i.d}{\sim} N(0, 1)$
+
+The first 6th-15th M variables ($M_6,M_7,\cdots,M_{14},M_{15}$) are set to be the true mediators (i.e., having non-zero $\alpha$ coefficients ($a$) and non-zero $\beta$ coefficients ($b$)), and all other coefficients are set to be 0. 
+
+For example, we can generate the example simulation experiment data using the following code. 
+
+```{r message=FALSE,warning=FALSE}
+## load package
+library(MediationFDR)
+
+## data generation
+set.seed(20205)
+data = datagen(n = 1000, p = 100, a = 0.5, b = 0.3, rho = 0.1)
+X = data$X; Y = data$Y; M = data$M
+```
+
+
+### Simulation setting
+
+* True mediators: $M_6,M_7,\cdots,M_{14},M_{15}$
+* Sample size: N = 1000
+* Number of potential mediators: p = 100, 400
+* Effect size of path-a: a = 0.3, 0.5
+* Effect size of path-b: b = 0.1, 0.3
+* Effect size of the defined correlation structure of M: rho = 0.1, 0.3, 0.5 
+* Number of simulation runs: 100
+
+#### Code
+
+```{r, eval = FALSE}
+# load packages
+library(MediationFDR)
+require(parallel) 
+require(doParallel) 
+library(foreach) 
+library(iterators) 
+library(dplyr)
+
+# input for simulation
+N_val = c(1000)
+K_val = c(100,400)
+alpha_val = c(0.3,0.5)
+beta_val = c(0.1,0.3)
+rho_val = c(0.1,0.3,0.5)
+method = c("Diff")
+q1 = c(0.025)
+q2 = c(0.025)
+
+truth = 6:15
+sim = 1:100
+
+# generate seed for each simulation run for reproducibility purposes
+set.seed(1)
+seed.df = data.frame(sim, seed = sample(1:10^5, length(sim)))
+
+# specify core numbers for parallel computing 
+nCores <- 4 ## can be changed manually
+registerDoParallel(nCores) 
+
+# --- simulation (our proposed method) ---- 
+## Here we use 4 simulations to illustrate the simulation code. 
+sim = 1:4
+re = foreach(n = N_val) %:%
+  foreach(k = K_val) %:% 
+  foreach(a = alpha_val) %:%
+  foreach(b = beta_val) %:% 
+  foreach(r = rho_val) %:%
+  foreach(m = method) %:% 
+  foreach(s = sim,.packages = c("glmnet","knockoff","mvtnorm","MediationFDR")) %dopar% {
+    set.seed(seed.df$seed[seed.df$sim == s])
+    # data 
+    dat = datagen(n,k,a,b,r)
+    X = dat$X; Y = dat$Y; M = dat$M
+    # method
+    out = MediationFDR(X = X, Y = Y, M = M, V1 = NULL, V2 = NULL, q1 = q1, q2 = q2, f_func = m, correction_method = "holm", weighted = FALSE)
+    out0 = paste(out$med_select, collapse = "_")
+    out0
+  }
+stopImplicitCluster()
+
+#re[[N_val]][[K_val]][[alpha_val]][[beta_val]][[rho_val]][[method]][[sim]]
+# rename the list
+N_name_list = paste0("N",N_val)
+names(re) = N_name_list
+for (n in 1:length(N_name_list)) {
+  names(re[[n]]) = paste0("K", K_val)
+  for (k in 1:length(K_val)) {
+    names(re[[n]][[k]]) = paste0("alpha",alpha_val)
+    for (a in 1:length(alpha_val)) {
+      names(re[[n]][[k]][[a]]) = paste0("beta",beta_val)
+      for (b in 1:length(beta_val)) {
+        names(re[[n]][[k]][[a]][[b]]) = paste0("rho",rho_val)
+        for (r in 1:length(rho_val)) {
+          names(re[[n]][[k]][[a]][[b]][[r]]) = method
+          for (m in 1:length(method)) {
+            names(re[[n]][[k]][[a]][[b]][[r]][[m]]) = paste0("sim",sim) } } } } } }
+
+# compute power,fdr
+results = 
+  do.call(rbind,lapply(N_val, function(n){
+    do.call(rbind,lapply(K_val, function(k){
+      do.call(rbind,lapply(alpha_val, function(a){
+        do.call(rbind,lapply(beta_val, function(b){
+          do.call(rbind,lapply(rho_val, function(r){
+            do.call(rbind,lapply(method, function(m){
+              do.call(rbind,lapply(sim, function(s){
+                out = re[[paste0("N",n)]][[paste0("K",k)]][[paste0("alpha",a)]][[paste0("beta",b)]][[paste0("rho",r)]][[m]][[paste0("sim",s)]]
+                select = as.numeric(unlist(strsplit(out, "_")))
+                power = length(which(select %in% truth))/length(truth)
+                fdr = length(which(!select %in% truth))/max(1,length(select))
+                data.frame(sim = s, N = n, K = k, alpha = a, beta = b, rho = r, method = m, final_selection = out, power = power, fdr = fdr) })) })) })) })) })) })) }))
+results = results %>% left_join(seed.df)
+# store results
+re.knockoff.corM = results
+
+
+# ----------------------------------------------------------------------------------------------------
+
+
+registerDoParallel(nCores) 
+
+# --- simulation (HIMA: https://github.com/YinanZheng/HIMA) ---- 
+## Here we use 4 simulations to illustrate the simulation code. 
+sim = 1:4
+re = foreach(n = N_val) %:%
+  foreach(k = K_val) %:% 
+  foreach(a = alpha_val) %:%
+  foreach(b = beta_val) %:% 
+  foreach(r = rho_val) %:%
+  foreach(s = sim,.packages = c("HIMA","mvtnorm","MediationFDR")) %dopar% {
+    set.seed(seed.df$seed[seed.df$sim == s])
+    # data 
+    dat = datagen(n,k,a,b,r)
+    X = dat$X; Y = dat$Y; M = dat$M
+    # method
+    out = hima(X, Y, M)
+    out
+  }
+stopImplicitCluster()
+
+#re[[N_val]][[K_val]][[alpha_val]][[beta_val]][[rho_val]][[sim]]
+# rename the list
+N_name_list = paste0("N",N_val)
+names(re) = N_name_list
+for (n in 1:length(N_name_list)) {
+  names(re[[n]]) = paste0("K", K_val)
+  for (k in 1:length(K_val)) {
+    names(re[[n]][[k]]) = paste0("alpha",alpha_val)
+    for (a in 1:length(alpha_val)) {
+      names(re[[n]][[k]][[a]]) = paste0("beta",beta_val)
+      for (b in 1:length(beta_val)) {
+        names(re[[n]][[k]][[a]][[b]]) = paste0("rho",rho_val)
+        for (r in 1:length(rho_val)) {
+          names(re[[n]][[k]][[a]][[b]][[r]]) = paste0("sim",sim)
+        }
+      }
+    }
+  }
+}
+
+# compute power,fdr
+results = 
+  do.call(rbind,lapply(N_val, function(n){
+    do.call(rbind,lapply(K_val, function(k){
+      do.call(rbind,lapply(alpha_val, function(a){
+        do.call(rbind,lapply(beta_val, function(b){
+          do.call(rbind,lapply(rho_val, function(r){
+            do.call(rbind,lapply(sim, function(s){
+              
+              out = re[[paste0("N",n)]][[paste0("K",k)]][[paste0("alpha",a)]][[paste0("beta",b)]][[paste0("rho",r)]][[paste0("sim",s)]]
+              hima.select = rownames(out)[which(out$Bonferroni.p < 0.05)]
+              hima.select = gsub("M", "", hima.select)
+              out0 = paste(hima.select, collapse = "_")
+              power = length(which(hima.select %in% truth))/length(truth)
+              fdr = length(which(!hima.select %in% truth))/max(1,length(hima.select))
+              data.frame(sim = s, N = n, K = k, alpha = a, beta = b, rho = r, final_selection = out0, power = power, fdr = fdr) })) })) })) })) })) }))
+results = results %>% left_join(seed.df)
+# store results
+re.hima.corM = results
+
+
+# ----------------------------------------------------------------------------------------------------
+
+
+registerDoParallel(nCores) 
+
+# --- simulation (HIMA2: https://github.com/joyfulstones/HIMA2) ---- 
+## Here we use 4 simulations to illustrate the simulation code. 
+## Note: HIMA2 takes a long time to run.
+sim = 1:4
+re = foreach(n = N_val) %:%
+  foreach(k = K_val) %:% 
+  foreach(a = alpha_val) %:%
+  foreach(b = beta_val) %:% 
+  foreach(r = rho_val) %:%
+  foreach(s = sim,.packages = c("mvtnorm","MASS","hdi","HDMT","MediationFDR")) %dopar% {
+    set.seed(seed.df$seed[seed.df$sim == s])
+    # data 
+    dat = datagen(n,k,a,b,r)
+    # relevant functions for HIMA2
+    null_estimation = function (input_pvalues) 
+{
+    if (is.null(ncol(input_pvalues))) 
+        stop("input_pvalues should be a matrix or data frame")
+    if (ncol(input_pvalues) != 2) 
+        stop("inpute_pvalues should have 2 column")
+    input_pvalues <- matrix(as.numeric(input_pvalues), nrow = nrow(input_pvalues))
+    if (sum(complete.cases(input_pvalues)) < nrow(input_pvalues)) 
+        warning("input_pvalues contains NAs to be removed from analysis")
+    input_pvalues <- input_pvalues[complete.cases(input_pvalues), 
+        ]
+    if (!is.null(nrow(input_pvalues)) & nrow(input_pvalues) < 
+        1) 
+        stop("input_pvalues doesn't have valid p-values")
+    pcut <- seq(0.1, 0.8, 0.1)
+    frac1 <- rep(0, 8)
+    frac2 <- rep(0, 8)
+    frac12 <- rep(0, 8)
+    for (i in 1:8) {
+        frac1[i] <- mean(input_pvalues[, 1] >= pcut[i])/(1 - 
+            pcut[i])
+        frac2[i] <- mean(input_pvalues[, 2] >= pcut[i])/(1 - 
+            pcut[i])
+        frac12[i] <- mean(input_pvalues[, 2] >= pcut[i] & input_pvalues[, 
+            1] >= pcut[i])/(1 - pcut[i])^2
+    }
+    alphaout <- matrix(0, 4, 5)
+    ll <- 1
+    qqslope <- rep(0, 4)
+    for (lambda in c(0.5, 0.6, 0.7, 0.8)) {
+        alpha00 <- min(frac12[pcut >= lambda][1], 1)
+        if (ks.test(input_pvalues[, 1], "punif", 0, 1, 
+            alternative = "greater")$p > 0.05) 
+            alpha1 <- 1
+        else alpha1 <- min(frac1[pcut >= lambda][1], 1)
+        if (ks.test(input_pvalues[, 2], "punif", 0, 1, 
+            alternative = "greater")$p > 0.05) 
+            alpha2 <- 1
+        else alpha2 <- min(frac2[pcut >= lambda][1], 1)
+        if (alpha00 == 1) {
+            alpha01 <- 0
+            alpha10 <- 0
+            alpha11 <- 0
+        }
+        else {
+            if (alpha1 == 1 & alpha2 == 1) {
+                alpha01 <- 0
+                alpha10 <- 0
+                alpha11 <- 0
+                alpha00 <- 1
+            }
+            if (alpha1 == 1 & alpha2 != 1) {
+                alpha10 <- 0
+                alpha11 <- 0
+                alpha01 <- alpha1 - alpha00
+                alpha01 <- max(0, alpha01)
+                alpha00 <- 1 - alpha01
+            }
+            if (alpha1 != 1 & alpha2 == 1) {
+                alpha01 <- 0
+                alpha11 <- 0
+                alpha10 <- alpha2 - alpha00
+                alpha10 <- max(0, alpha10)
+                alpha00 <- 1 - alpha10
+            }
+            if (alpha1 != 1 & alpha2 != 1) {
+                alpha10 <- alpha2 - alpha00
+                alpha10 <- max(0, alpha10)
+                alpha01 <- alpha1 - alpha00
+                alpha01 <- max(0, alpha01)
+                if ((1 - alpha00 - alpha01 - alpha10) < 0) {
+                  alpha11 <- 0
+                  alpha10 <- 1 - alpha1
+                  alpha01 <- 1 - alpha2
+                  alpha00 <- 1 - alpha10 - alpha01
+                }
+                else {
+                  alpha11 <- 1 - alpha00 - alpha01 - alpha10
+                }
+            }
+        }
+        pmax <- apply(input_pvalues, 1, max)
+        pmax <- pmax[order(pmax)]
+        nnulls <- sum(pmax > 0.8)
+        nmed <- nrow(input_pvalues)
+        pexp <- rep(0, nnulls)
+        for (i in 1:nmed) {
+            c <- (-i/nmed)
+            b <- alpha01 + alpha10
+            a <- 1 - b
+            if (a == 0) {a = 10^(-10)} #~~~ added
+            pexp[i] <- (-b + sqrt(b^2 - 4 * a * c))/(2 * a)
+        }
+        xx <- -log(pexp[(nmed - nnulls + 1):nmed], base = 10)
+        yy <- -log(pmax[(nmed - nnulls + 1):nmed], base = 10)
+        fit1 <- lm(yy ~ xx - 1)
+        qqslope[ll] <- fit1$coef[1]
+        alphaout[ll, 1] <- alpha10
+        alphaout[ll, 2] <- alpha01
+        alphaout[ll, 3] <- alpha00
+        alphaout[ll, 4] <- alpha1
+        alphaout[ll, 5] <- alpha2
+        ll <- ll + 1
+    }
+    bestslope <- which.min(qqslope)
+    alpha.null <- list(alpha10 = alphaout[bestslope, 1], alpha01 = alphaout[bestslope, 
+        2], alpha00 = alphaout[bestslope, 3], alpha1 = alphaout[bestslope, 
+        4], alpha2 = alphaout[bestslope, 5])
+    return(alpha.null)
+}
+    HIMA2<-function(X,Y,M,Z)
+{
+n <- dim(X)[1]  # number of samples
+p <- dim(M)[2]  # number of mediators
+d <- dim(X)[2]  # number of exposures
+#q <- dim(Z)[2]  # number of covariates
+if (is.null(Z)) {q = 0} else {q <- dim(Z)[2]}  #~~~ modified here
+
+MZX<-cbind(M,Z,X)
+
+#########################################################################
+########################### (Step 1) SIS step ########################### 
+#########################################################################
+message("Step 1: Sure Independent Screening ...", "  (", Sys.time(), ")")
+
+d_0 <- 2*round(n/log(n)) 
+if (d_0 > p) {d_0 = p} #~~~ added here
+beta_SIS <- matrix(0,1,p) 
+
+# Estimate the regression coefficients beta (mediators --> outcome)
+for (i in 1:p){
+  ID_S <- c(i, (p+1):(p+q+1))
+  MZX_SIS <- MZX[,ID_S]
+  fit <- lsfit(MZX_SIS,Y,intercept = TRUE)
+  beta_SIS[i] <- fit$coefficients[2]
+}
+
+# Estimate the regression coefficients alpha (exposure --> mediators)
+alpha_SIS <- matrix(0,1,p)
+XZ <- cbind(X,Z)
+for (i in 1:p){
+  fit_a  <- lsfit(XZ,M[,i],intercept = TRUE)
+  est_a <- matrix(coef(fit_a))[2]
+  alpha_SIS[i] <- est_a
+}
+
+# Select the d_0 number of mediators with top largest effect 
+ab_SIS <- alpha_SIS*beta_SIS
+ID_SIS  <- which(-abs(ab_SIS) <= sort(-abs(ab_SIS))[d_0])
+d <- length(ID_SIS)
+
+#########################################################################
+################### (Step 2) De-biased Lasso Estimates ##################
+#########################################################################
+message("Step 2: De-biased Lasso Estimates ...", "   (", Sys.time(), ")")
+
+P_beta_SIS <- matrix(0,1,d)
+beta_DLASSO_SIS_est <- matrix(0,1,d)
+beta_DLASSO_SIS_SE <- matrix(0,1,d)
+MZX_SIS <- MZX[,c(ID_SIS, (p+1):(p+q+1))]
+
+DLASSO_fit <- lasso.proj(x=MZX_SIS, y=Y, family = "gaussian",Z = NULL)
+beta_DLASSO_SIS_est <- DLASSO_fit$bhat[1:d]
+beta_DLASSO_SIS_SE <- DLASSO_fit$se
+P_beta_SIS <- t(DLASSO_fit$pval[1:d])
+
+################### Estimate alpha ################
+alpha_SIS_est <- matrix(0,1,d)
+alpha_SIS_SE <- matrix(0,1,d)
+P_alpha_SIS <- matrix(0,1,d)
+
+XZ <- cbind(X,Z)
+for (i in 1:d){
+  fit_a  <- lsfit(XZ,M[,ID_SIS[i]],intercept = TRUE)
+  est_a <- matrix(coef(fit_a))[2]
+  se_a <- ls.diag(fit_a)$std.err[2]
+  sd_1 <- abs(est_a)/se_a
+  P_alpha_SIS[i] <- 2*(1-pnorm(sd_1,0,1))  ## the SIS for alpha
+  alpha_SIS_est[i] <- est_a
+  alpha_SIS_SE[i] <- se_a
+}
+
+#########################################################################
+################ (step 3) The multiple-testing  procedure ###############
+#########################################################################
+message("Step 3: Joint significance test ...", "     (", Sys.time(), ")")
+
+PA <- cbind(t(P_alpha_SIS),(t(P_beta_SIS)))
+P_value <- apply(PA,1,max)  #The joint p-values for SIS variable
+
+N0 <- dim(PA)[1]*dim(PA)[2]
+input_pvalues <- PA + matrix(runif(N0,0,10^{-10}),dim(PA)[1],2)
+
+# Estimate the proportions of the three component nulls
+nullprop <- null_estimation(input_pvalues)
+
+# Compute the estimated pointwise FDR for every observed p-max
+fdrcut  <- fdr_est(nullprop$alpha00,nullprop$alpha01,nullprop$alpha10, nullprop$alpha1,nullprop$alpha2,input_pvalues,exact=0)
+
+ID_fdr <- which(fdrcut <= 0.05)
+
+# Following codes extract the estimates for mediators with fdrcut<=0.05
+beta_hat_est <- beta_DLASSO_SIS_est[ID_fdr]
+beta_hat_SE  <- beta_DLASSO_SIS_SE[ID_fdr]
+
+alpha_hat_est <-  alpha_SIS_est[ID_fdr]
+alpha_hat_SE  <-  alpha_SIS_SE[ID_fdr]
+
+P.value_raw <- P_value[ID_fdr]
+
+# Indirect effect
+IDE <- beta_hat_est*alpha_hat_est # mediation(indirect) effect
+
+# Here we name the mediators as M1-Mp and extract the names of significant ones.
+M<-(sprintf("M%d", 1:p))[ID_SIS[ID_fdr]]
+
+# create a data frame with output values
+output<-data.frame(cbind(M, alpha=alpha_hat_est,alpha_SE=alpha_hat_SE,beta=beta_hat_est,beta_SE=beta_hat_SE,"alpha*beta"=IDE, 
+                          p_val=P.value_raw))
+
+message("Done!", "     (", Sys.time(), ")")
+
+return(output)
+}
+    # method
+    out = HIMA2(X=as.matrix(dat$X), Y=as.matrix(dat$Y), M=as.matrix(dat$M), Z=NULL)
+    out
+  }
+stopImplicitCluster()
+
+#re[[N_val]][[K_val]][[alpha_val]][[beta_val]][[rho_val]][[sim]]
+# rename the list
+N_name_list = paste0("N",N_val)
+names(re) = N_name_list
+for (n in 1:length(N_name_list)) {
+  names(re[[n]]) = paste0("K", K_val)
+  for (k in 1:length(K_val)) {
+    names(re[[n]][[k]]) = paste0("alpha",alpha_val)
+    for (a in 1:length(alpha_val)) {
+      names(re[[n]][[k]][[a]]) = paste0("beta",beta_val)
+      for (b in 1:length(beta_val)) {
+        names(re[[n]][[k]][[a]][[b]]) = paste0("rho",rho_val)
+        for (r in 1:length(rho_val)) {
+          names(re[[n]][[k]][[a]][[b]][[r]]) = paste0("sim",sim) } } } } }
+
+# compute power,fdr
+results = 
+  do.call(rbind,lapply(N_val, function(n){
+    do.call(rbind,lapply(K_val, function(k){
+      do.call(rbind,lapply(alpha_val, function(a){
+        do.call(rbind,lapply(beta_val, function(b){
+          do.call(rbind,lapply(rho_val, function(r){
+            do.call(rbind,lapply(sim, function(s){
+              out = re[[paste0("N",n)]][[paste0("K",k)]][[paste0("alpha",a)]][[paste0("beta",b)]][[paste0("rho",r)]][[paste0("sim",s)]]
+              out0 = paste(gsub("M", "", out$M), collapse = "_")
+              hima.select = as.numeric(gsub("M", "", out$M))
+              power = length(which(hima.select %in% truth))/length(truth)
+              fdr = length(which(!hima.select %in% truth))/max(1,length(hima.select))
+              data.frame(sim = s, N = n, K = k, alpha = a, beta = b, rho = r, final_selection = out0, power = power, fdr = fdr) })) })) })) })) })) }))
+results = results %>% left_join(seed.df)
+# store results
+re.hima2.corM = results
+
+
+# ----------------------------------------------------------------------------------------------------
+
+
+registerDoParallel(nCores) 
+
+# --- simulation (MCP_D: https://github.com/SiminaB/MultiMed)
+## Here we use 4 simulations to illustrate the simulation code. 
+sim = 1:4
+re = foreach(n = N_val) %:%
+  foreach(k = K_val) %:% 
+  foreach(a = alpha_val) %:%
+  foreach(b = beta_val) %:% 
+  foreach(r = rho_val) %:%
+  foreach(s = sim,.packages = c("mvtnorm","MultiMed","MediationFDR")) %dopar% {
+    set.seed(seed.df$seed[seed.df$sim == s])
+    # data 
+    dat = datagen(n,k,a,b,r)
+    data = data.frame(X = dat$X, Y = dat$Y, dat$M)
+    # method
+##get all M names
+Mnames <- colnames(data)[-c(1:2)]
+
+##get exposure/mediator relationships
+pEM <- sapply(data[,Mnames], 
+              function(m,e){coef(summary(lm(m ~ e)))[2,4]}, 
+              e=data$X)
+
+##get mediator/outcome relationship (conditional on exposure)
+pMY <- sapply(data[,Mnames], 
+              function(m,y,e){coef(summary(lm(y ~ m + e)))[2,4]}, 
+              y=data$Y, e=data$X)
+
+##perform mediation test for FDR procedures
+medTest.FDR <- medTest.SBMH(pEM, pMY, MCP.type="FDR", t1 = 0.025, t2 = 0.025)
+out = Mnames[which(medTest.FDR < 0.05)]
+
+    out
+  }
+stopImplicitCluster()
+
+#re[[N_val]][[K_val]][[alpha_val]][[beta_val]][[rho_val]][[sim]]
+# rename the list
+N_name_list = paste0("N",N_val)
+names(re) = N_name_list
+for (n in 1:length(N_name_list)) {
+  names(re[[n]]) = paste0("K", K_val)
+  for (k in 1:length(K_val)) {
+    names(re[[n]][[k]]) = paste0("alpha",alpha_val)
+    for (a in 1:length(alpha_val)) {
+      names(re[[n]][[k]][[a]]) = paste0("beta",beta_val)
+      for (b in 1:length(beta_val)) {
+        names(re[[n]][[k]][[a]][[b]]) = paste0("rho",rho_val)
+        for (r in 1:length(rho_val)) {
+          names(re[[n]][[k]][[a]][[b]][[r]]) = paste0("sim",sim) } } } } }
+
+# compute power,fdr
+results = 
+  do.call(rbind,lapply(N_val, function(n){
+    do.call(rbind,lapply(K_val, function(k){
+      do.call(rbind,lapply(alpha_val, function(a){
+        do.call(rbind,lapply(beta_val, function(b){
+          do.call(rbind,lapply(rho_val, function(r){
+            do.call(rbind,lapply(sim, function(s){
+              out = re[[paste0("N",n)]][[paste0("K",k)]][[paste0("alpha",a)]][[paste0("beta",b)]][[paste0("rho",r)]][[paste0("sim",s)]]
+              out0 = paste(gsub("M", "", out), collapse = "_")
+              select = as.numeric(gsub("M", "", out))
+              power = length(which(select %in% truth))/length(truth)
+              fdr = length(which(!select %in% truth))/max(1,length(select))
+              data.frame(sim = s, N = n, K = k, alpha = a, beta = b, rho = r, final_selection = out0, power = power, fdr = fdr) })) })) })) })) })) }))
+results = results %>% left_join(seed.df)
+# store results
+re.mcp.corM = results
+
+
+# ----------------------------------------------------------------------------------------------------
+
+# --- combine results 
+re.corM = rbind(re.knockoff.corM, re.hima.corM %>% mutate(method = "HIMA") %>% relocate(method, .after = rho), re.hima2.corM %>% mutate(method = "HIMA2") %>% relocate(method, .after = rho), re.mcp.corM %>% mutate(method = "MCP") %>% relocate(method, .after = rho))
+## mean 
+re.corM.mean = re.corM[,-c(1,8,11)] %>% 
+  group_by(N,K,alpha,beta,method,rho) %>% summarise_all("mean") %>% ungroup()
+## plot 
+p1 = re.corM.mean %>% 
+  filter(K %in% c(100)) %>% 
+  mutate(
+    p = factor(K, levels = K_val,labels = paste0("p = ",K_val)),
+    N = factor(N, levels = N_val,labels = paste0("N = ",N_val)),
+    ES = paste0("a=",alpha,", b=",beta),
+    rho = paste0("rho=",rho),
+    method = factor(method, levels = c("Knockoff_Diff","HIMA2","HIMA","MCP")),
+    ) %>% 
+  ggplot(aes(y = power,x = rho,group = method, alpha = method, color = method)) + 
+  geom_point(size = 2) + 
+  geom_line(aes(size = method, linetype = method)) +
+  scale_size_manual(values = c(1,1,1,1)) + 
+  scale_alpha_manual(values=c(.8,.6,0.6,0.6)) +
+  scale_linetype_manual(values = c("solid","longdash","dotted","dotdash")) + 
+  facet_grid(~ES, scales = "free") + 
+  #ylim(0, 1) + 
+  scale_y_continuous(limits = c(0,1),breaks=c(0,.2,.4,.6,.8,1)) +
+  geom_hline(yintercept = 0.8, linetype = "dashed") +
+  labs(x = NULL, y = "Power", title = "p = 100") + 
+  theme_classic() + 
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=0.5),
+        legend.position="top",legend.title = element_blank(),
+        legend.key.size = unit(1.8, 'cm')#,text = element_text(size = 13)
+        ) +
+  scale_color_manual(values=c("#EE4C97FF", "#5D8CA8FF", "#66C2A5FF","#FC8D62FF"))
+
+p2 = re.corM.mean %>% 
+  filter(K %in% c(400)) %>% 
+  mutate(
+    p = factor(K, levels = K_val,labels = paste0("p = ",K_val)),
+    N = factor(N, levels = N_val,labels = paste0("N = ",N_val)),
+    ES = paste0("a=",alpha,", b=",beta),
+    rho = paste0("rho=",rho),
+    method = factor(method, levels = c("Knockoff_Diff","HIMA2","HIMA","MCP")),
+    ) %>% 
+  ggplot(aes(y = power,x = rho,group = method, alpha = method, color = method)) + 
+  geom_point(size = 2) + 
+  geom_line(aes(size = method, linetype = method)) +
+  scale_size_manual(values = c(1,1,1,1)) + 
+  scale_alpha_manual(values=c(.8,.6,0.6,0.6)) +
+  scale_linetype_manual(values = c("solid","longdash","dotted","dotdash")) + 
+  facet_grid(~ES, scales = "free") + 
+  #ylim(0, 1) + 
+  scale_y_continuous(limits = c(0,1),breaks=c(0,.2,.4,.6,0.8,1)) +
+  geom_hline(yintercept = 0.8, linetype = "dashed") +
+  labs(x = NULL, y = "Power", title = "p = 400") + 
+  theme_classic() + 
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=0.5),
+        legend.position="top",legend.title = element_blank(),
+        legend.key.size = unit(1.8, 'cm')#,text = element_text(size = 13)
+        ) +
+  scale_color_manual(values=c("#EE4C97FF", "#5D8CA8FF", "#66C2A5FF","#FC8D62FF"))
+
+p3 = re.corM.mean %>% 
+  filter(K %in% c(100)) %>% 
+  mutate(
+    p = factor(K, levels = K_val,labels = paste0("p = ",K_val)),
+    N = factor(N, levels = N_val,labels = paste0("N = ",N_val)),
+    ES = paste0("a=",alpha,", b=",beta),
+    rho = paste0("rho=",rho),
+    method = factor(method, levels = c("Knockoff_Diff","HIMA2","HIMA","MCP")),
+    ) %>% 
+  ggplot(aes(y = fdr,x = rho,group = method, alpha = method, color = method)) + 
+  geom_point(size = 2) + 
+  geom_line(aes(size = method, linetype = method)) +
+  scale_size_manual(values = c(1,1,1,1)) + 
+  scale_alpha_manual(values=c(.8,.6,0.6,0.6)) +
+  scale_linetype_manual(values = c("solid","longdash","dotted","dotdash")) + 
+  facet_grid(~ES, scales = "free") + 
+  #ylim(0, .4) + 
+  scale_y_continuous(limits = c(0,0.4),breaks=c(0,0.05,0.1,0.2,0.3,0.4)) +
+  geom_hline(yintercept = 0.05, linetype = "dashed") +
+  labs(x = NULL, y = "FDR"#, title = "p = 100"
+       ) + 
+  theme_classic() + 
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=0.5),
+        legend.position="none",legend.title = element_blank(),
+        legend.key.size = unit(1.8, 'cm')#,text = element_text(size = 13)
+        ) +
+  scale_color_manual(values=c("#EE4C97FF", "#5D8CA8FF", "#66C2A5FF","#FC8D62FF"))
+
+p4 = re.corM.mean %>% 
+  filter(K %in% c(400)) %>% 
+  mutate(
+    p = factor(K, levels = K_val,labels = paste0("p = ",K_val)),
+    N = factor(N, levels = N_val,labels = paste0("N = ",N_val)),
+    ES = paste0("a=",alpha,", b=",beta),
+    rho = paste0("rho=",rho),
+    method = factor(method, levels = c("Knockoff_Diff","HIMA2","HIMA","MCP")),
+    ) %>% 
+  ggplot(aes(y = fdr,x = rho,group = method, alpha = method, color = method)) + 
+  geom_point(size = 2) + 
+  geom_line(aes(size = method, linetype = method)) +
+  scale_size_manual(values = c(1,1,1,1)) + 
+  scale_alpha_manual(values=c(.8,.6,0.6,0.6)) +
+  scale_linetype_manual(values = c("solid","longdash","dotted","dotdash")) + 
+  facet_grid(~ES, scales = "free") + 
+  #ylim(0, .4) + 
+  scale_y_continuous(limits = c(0,0.4),breaks=c(0,0.05,0.1,0.2,0.3,0.4)) +
+  geom_hline(yintercept = 0.05, linetype = "dashed") +
+  labs(x = NULL, y = "FDR"#, title = "p = 100"
+       ) + 
+  theme_classic() + 
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=0.5),
+        legend.position="none",legend.title = element_blank(),
+        legend.key.size = unit(1.8, 'cm')#,text = element_text(size = 13)
+        ) +
+  scale_color_manual(values=c("#EE4C97FF", "#5D8CA8FF", "#66C2A5FF","#FC8D62FF"))
+
+library(patchwork)
+(p1+plot_spacer()+p2+plot_layout(widths = c(7,.15,7),guides = "keep")& theme(legend.position = "top"))/(p3+plot_spacer()+p4+plot_layout(widths = c(7,.15,7),guides = "keep"))
+```
+
+
