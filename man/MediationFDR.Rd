@@ -8,8 +8,8 @@ MediationFDR(
   X,
   Y,
   M,
-  C1 = NULL,
-  C2 = NULL,
+  V1 = NULL,
+  V2 = NULL,
   q1 = 0.05,
   q2 = 0.05,
   f_func = "Max",
@@ -25,19 +25,19 @@ MediationFDR(
 
 \item{M}{potential mediators}
 
-\item{C1}{confounding variables in X-M path}
+\item{V1}{confounding variables in X-M path}
 
-\item{C2}{confounding variables in M-Y path}
+\item{V2}{confounding variables in M-Y path}
 
 \item{q1}{FWER level in step 1}
 
-\item{q2}{FDR controlled level in step 2}
+\item{q2}{FDR controlled level in step 4}
 
-\item{f_func}{function form of W in step 2}
+\item{f_func}{function form of W in step 4}
 
 \item{correction_method}{multiple comparison correction method in step 1}
 
-\item{weighted}{whether we weight the Z statistics in step 2}
+\item{weighted}{whether we weight the Z statistics in step 3}
 
 \item{binaryOutcome}{whether the outcome is binary}
 }
@@ -48,8 +48,7 @@ selected mediators
 This function selects the mediators while controlling for FDR.
 }
 \examples{
-data = datagen(n = 200, K = 50, a = 0.8, b = 0.5)
+set.seed(2022); data = datagen(n = 800, p = 351, a = 0.8, b = 0.5, rho = 0.3)
 X = data$X; Y = data$Y; M = data$M
-MediationFDR(X,Y,M)
-
+MediationFDR(X = X, Y = Y, M = M, V1 = NULL, V2 = NULL, q1 = 0.025, q2 = 0.025, f_func = "Max", correction_method = "holm", weighted = FALSE))
 }

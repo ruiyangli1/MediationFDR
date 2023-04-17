@@ -47,7 +47,7 @@
   <a href="../reference/index.html">Reference</a>
 </li>
 <li class="dropdown">
-  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">
+  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
     Articles
      
     <span class="caret"></span>
@@ -76,7 +76,7 @@
 
       
 
-      </header><script src="Example_files/header-attrs-2.11/header-attrs.js"></script><div class="row">
+      </header><script src="Example_files/header-attrs-2.16/header-attrs.js"></script><div class="row">
   <div class="col-md-9 contents">
     <div class="page-header toc-ignore">
       <h1 data-toc-skip>Example</h1>
@@ -101,12 +101,14 @@ generated as follows.</p>
 <p>For each subject <span class="math inline">\(i = 1, ...,
 n\)</span>:</p>
 <ul>
-<li><span class="math inline">\(X_i \stackrel{i.i.d}{\sim} Bernoulli(p =
-0.5)\)</span></li>
+<li><span class="math inline">\(X_i \stackrel{i.i.d}{\sim}
+Bernoulli(prob = 0.5)\)</span></li>
 <li>
 <span class="math inline">\(M_{i,k} = \alpha_k X_i +
 e_{1_{i,k}}\)</span>, where <span class="math inline">\(e_{1_{i,k}}
-\stackrel{i.i.d}{\sim} N(0, 1), k = 1, ..., K\)</span>
+\stackrel{i.i.d}{\sim} N(0, \Sigma), k = 1, ..., p, \Sigma\)</span> is
+the variance-covariance matrix with diagonal entries 1 and off-diagonal
+entries <span class="math inline">\(\rho\)</span>
 </li>
 <li>
 <span class="math inline">\(Y_i = X_i + \sum_k b_{k} M_{i,k} +
@@ -114,16 +116,17 @@ e_{2_{i}}\)</span>, where <span class="math inline">\(e_{2_{i}}
 \stackrel{i.i.d}{\sim} N(0, 1)\)</span>
 </li>
 </ul>
-<p>The 6th-10th M variables (M6,M7,M8,M9,M10) are set to be the true
-mediators (i.e., having non-zero alpha and beta coefficients).</p>
-<p>Specifically, the first 10 coefficients of alpha are set to take some
-non-zero value a, the 6th to 15th coefficients of beta are set to take
+<p>The 6th-15th M variables (M6,M7,M8,M9,M10,M11,M12,M13,M14,M15) are
+set to be the true mediators (i.e., having non-zero alpha and beta
+coefficients).</p>
+<p>Specifically, the first 15 coefficients of alpha are set to take some
+non-zero value a, the 6th to 20th coefficients of beta are set to take
 some non-zero value b, and all other alpha and beta coefficients are set
 to be 0.</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span class="co">## data generation</span>
 <span class="fu"><a href="https://rdrr.io/r/base/Random.html">set.seed</a></span><span class="op">(</span><span class="fl">123</span><span class="op">)</span>
-<span class="va">data</span> <span class="op">=</span> <span class="fu"><a href="../reference/datagen.html">datagen</a></span><span class="op">(</span>n <span class="op">=</span> <span class="fl">200</span>, K <span class="op">=</span> <span class="fl">50</span>, a <span class="op">=</span> <span class="fl">0.8</span>, b <span class="op">=</span> <span class="fl">0.5</span><span class="op">)</span>
+<span class="va">data</span> <span class="op">=</span> <span class="fu"><a href="../reference/datagen.html">datagen</a></span><span class="op">(</span>n <span class="op">=</span> <span class="fl">1000</span>, p <span class="op">=</span> <span class="fl">100</span>, a <span class="op">=</span> <span class="fl">0.5</span>, b <span class="op">=</span> <span class="fl">0.3</span>, rho <span class="op">=</span> <span class="fl">0.3</span><span class="op">)</span>
 <span class="va">X</span> <span class="op">=</span> <span class="va">data</span><span class="op">$</span><span class="va">X</span>; <span class="va">Y</span> <span class="op">=</span> <span class="va">data</span><span class="op">$</span><span class="va">Y</span>; <span class="va">M</span> <span class="op">=</span> <span class="va">data</span><span class="op">$</span><span class="va">M</span></code></pre></div>
 </div>
 <div id="mediator-selection" class="section level2">
@@ -132,7 +135,23 @@ to be 0.</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span class="fu"><a href="../reference/MediationFDR.html">MediationFDR</a></span><span class="op">(</span><span class="va">X</span>,<span class="va">Y</span>,<span class="va">M</span><span class="op">)</span>
 <span class="co">#&gt; $med_select</span>
-<span class="co">#&gt; [1]  6  7  8  9 10</span></code></pre></div>
+<span class="co">#&gt;  [1]  6  7  8  9 10 11 12 13 14 15</span>
+<span class="co">#&gt; </span>
+<span class="co">#&gt; $path.a</span>
+<span class="co">#&gt;  [1]  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15</span>
+<span class="co">#&gt; </span>
+<span class="co">#&gt; $path.b</span>
+<span class="co">#&gt;  [1]   6   7   8   9  10  11  12  13  14  15  16  17  18  19  20  24  33  34  41</span>
+<span class="co">#&gt; [20]  47  57  65  74  75  77 100</span>
+<span class="co">#&gt; </span>
+<span class="co">#&gt; $path.b.tilde</span>
+<span class="co">#&gt;  [1]  4 12 23 29 42 50 56 59 70 75 84 97</span>
+<span class="co">#&gt; </span>
+<span class="co">#&gt; $path.b.weighta</span>
+<span class="co">#&gt;  [1]  6  7  8  9 10 11 12 13 14 15</span>
+<span class="co">#&gt; </span>
+<span class="co">#&gt; $path.b.tilde.weighta</span>
+<span class="co">#&gt; [1]  4 12</span></code></pre></div>
 </div>
   </div>
 

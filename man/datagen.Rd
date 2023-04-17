@@ -4,19 +4,21 @@
 \alias{datagen}
 \title{Data generation function}
 \usage{
-datagen(n, K, a, b)
+datagen(n, p, a, b, rho)
 }
 \arguments{
 \item{n}{sample size}
 
-\item{K}{number of potential mediators}
+\item{p}{number of potential mediators}
 
 \item{a}{effect size for X-M path (i.e., non-zero alpha coefficient)}
 
 \item{b}{effect size for M-Y path (i.e., non-zero beta coefficient)}
+
+\item{rho}{effect size for the correlation structure of M}
 }
 \value{
-The resulting dataset has 3 lists: X, Y and M
+The resulting data has 3 lists: X, Y and M
 }
 \description{
 This function generates the simulation data (exposure X, outcome Y, and potential mediators M).
@@ -24,7 +26,7 @@ This function generates the simulation data (exposure X, outcome Y, and potentia
 For each subject i = 1, ..., n:
 \itemize{
 \item \eqn{X_i \stackrel{i.i.d}{\sim} Bernoulli(p = 0.5)}
-\item \eqn{M_{i,k} = \alpha_k X_i + e_{1_{i,k}}}, where \eqn{e_{1_{i,k}} \stackrel{i.i.d}{\sim} N(0, 1), k = 1, ..., K}
+\item \eqn{M_{i,k} = \alpha_k X_i + e_{1_{i,k}}}, where \eqn{e_{1_{i,k}} \stackrel{i.i.d}{\sim} N(0, \Sigma), k = 1, ..., p, \Sigma is the variance-covariance matrix with diagonal entries 1 and off-diagonal entries \rho}
 \item \eqn{Y_i = X_i + \sum_k b_{k} M_{i,k} + e_{2_{i}}}, where \eqn{e_{2_{i}} \stackrel{i.i.d}{\sim} N(0, 1)}
 }
 
@@ -33,5 +35,5 @@ The 6th-10th M variables (M6,M7,M8,M9,M10) are set to be the true mediators (i.e
 Specifically, the first 10 coefficients of alpha are set to take some non-zero value a, the 6th to 15th coefficients of beta are set to take some non-zero value b, and all other alpha and beta coefficients are set to be 0.
 }
 \examples{
-datagen(n = 100, K = 50, a = 0.5, b = 0.3)
+datagen(n = 100, p = 50, a = 0.5, b = 0.3, rho = 0.1)
 }
