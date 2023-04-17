@@ -10,9 +10,9 @@ MediationFDR(
   M,
   V1 = NULL,
   V2 = NULL,
-  q1 = 0.05,
-  q2 = 0.05,
-  f_func = "Max",
+  q1 = 0.025,
+  q2 = 0.025,
+  f_func = "Diff",
   correction_method = "holm",
   weighted = FALSE,
   binaryOutcome = FALSE
@@ -48,8 +48,7 @@ selected mediators
 This function selects the mediators while controlling for FDR.
 }
 \examples{
-data = datagen(n = 100, p = 50, a = 0.5, b = 0.3, rho = 0.1); data
-set.seed(2022); data = datagen(n = 800, p = 351, a = 0.8, b = 0.5, rho = 0.3)
-X = data$X; Y = data$Y; M = data$M
-MediationFDR(X = X, Y = Y, M = M, V1 = NULL, V2 = NULL, q1 = 0.025, q2 = 0.025, f_func = "Max", correction_method = "holm", weighted = FALSE))
+set.seed(20205)
+data = datagen(n = 1000, p = 100, a = 0.5, b = 0.3, rho = 0.1)
+MediationFDR(X = data$X, Y = data$Y, M = data$M, V1 = NULL, V2 = NULL, q1 = 0.025, q2 = 0.025, f_func = "Diff", correction_method = "holm", weighted = FALSE)
 }

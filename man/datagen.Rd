@@ -25,15 +25,15 @@ This function generates the simulation data (exposure X, outcome Y, and potentia
 
 For each subject i = 1, ..., n:
 \itemize{
-\item \eqn{X_i \stackrel{i.i.d}{\sim} Bernoulli(p = 0.5)}
-\item \eqn{M_{i,k} = \alpha_k X_i + e_{1_{i,k}}}, where \eqn{e_{1_{i,k}} \stackrel{i.i.d}{\sim} N(0, \Sigma), k = 1, ..., p, \Sigma is the variance-covariance matrix with diagonal entries 1 and off-diagonal entries \rho}
+\item \eqn{X_i \stackrel{i.i.d}{\sim} Bernoulli(prob = 0.5)}
+\item \eqn{M_{i,k} = \alpha_k X_i + e_{1_{i,k}}}, where \eqn{e_{1_{i,k}} \stackrel{i.i.d}{\sim} N(0, \Sigma), k = 1, ..., p, \Sigma} is the variance-covariance matrix with diagonal entries 1 and off-diagonal entries rho
 \item \eqn{Y_i = X_i + \sum_k b_{k} M_{i,k} + e_{2_{i}}}, where \eqn{e_{2_{i}} \stackrel{i.i.d}{\sim} N(0, 1)}
 }
 
-The 6th-10th M variables (M6,M7,M8,M9,M10) are set to be the true mediators (i.e., having non-zero alpha and beta coefficients).
+The 6th-15th M variables (M6,M7,M8,M9,M10,M11,M12,M13,M14,M15) are set to be the true mediators (i.e., having non-zero alpha and beta coefficients).
 
-Specifically, the first 10 coefficients of alpha are set to take some non-zero value a, the 6th to 15th coefficients of beta are set to take some non-zero value b, and all other alpha and beta coefficients are set to be 0.
+Specifically, the first 15 coefficients of alpha are set to take some non-zero value a, the 6th to 20th coefficients of beta are set to take some non-zero value b, and all other alpha and beta coefficients are set to be 0.
 }
 \examples{
-datagen(n = 100, p = 50, a = 0.5, b = 0.3, rho = 0.1)
+set.seed(20205); datagen(n = 1000, p = 100, a = 0.5, b = 0.3, rho = 0.1)
 }
