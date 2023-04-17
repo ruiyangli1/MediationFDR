@@ -1,5 +1,5 @@
 ---
-title: "Simulation for MediationFDR"
+title: "Simulation Code"
 output: rmarkdown::html_vignette
 vignette: >
   %\VignetteIndexEntry{Simulation for MediationFDR}
@@ -15,9 +15,9 @@ knitr::opts_chunk$set(
 ```
 
 
-# Data generation
-
 ## Correlated mediators with defined correlation structure
+
+### Example data generation
 
 The example simulation experiment data (exposure X, outcome Y, and potential mediators M) was generated as follows. 
 
@@ -52,7 +52,7 @@ X = data$X; Y = data$Y; M = data$M
 * Effect size of the defined correlation structure of M: rho = 0.1, 0.3, 0.5 
 * Number of simulation runs: 100
 
-#### Code
+### Code
 
 ```{r, eval = FALSE}
 # load packages
@@ -566,11 +566,15 @@ re.mcp.corM = results
 # ----------------------------------------------------------------------------------------------------
 
 # --- combine results 
-re.corM = rbind(re.knockoff.corM, re.hima.corM %>% mutate(method = "HIMA") %>% relocate(method, .after = rho), re.hima2.corM %>% mutate(method = "HIMA2") %>% relocate(method, .after = rho), re.mcp.corM %>% mutate(method = "MCP") %>% relocate(method, .after = rho))
+re.corM = rbind(re.knockoff.corM %>% mutate(method = paste0("Knockoff_", method)), 
+                re.hima.corM %>% mutate(method = "HIMA") %>% relocate(method, .after = rho), 
+                re.hima2.corM %>% mutate(method = "HIMA2") %>% relocate(method, .after = rho), 
+                re.mcp.corM %>% mutate(method = "MCP") %>% relocate(method, .after = rho))
 ## mean 
 re.corM.mean = re.corM[,-c(1,8,11)] %>% 
   group_by(N,K,alpha,beta,method,rho) %>% summarise_all("mean") %>% ungroup()
 ## plot 
+library(ggplot2)
 p1 = re.corM.mean %>% 
   filter(K %in% c(100)) %>% 
   mutate(
@@ -587,14 +591,13 @@ p1 = re.corM.mean %>%
   scale_alpha_manual(values=c(.8,.6,0.6,0.6)) +
   scale_linetype_manual(values = c("solid","longdash","dotted","dotdash")) + 
   facet_grid(~ES, scales = "free") + 
-  #ylim(0, 1) + 
   scale_y_continuous(limits = c(0,1),breaks=c(0,.2,.4,.6,.8,1)) +
   geom_hline(yintercept = 0.8, linetype = "dashed") +
   labs(x = NULL, y = "Power", title = "p = 100") + 
   theme_classic() + 
   theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=0.5),
         legend.position="top",legend.title = element_blank(),
-        legend.key.size = unit(1.8, 'cm')#,text = element_text(size = 13)
+        legend.key.size = unit(1.8, 'cm')
         ) +
   scale_color_manual(values=c("#EE4C97FF", "#5D8CA8FF", "#66C2A5FF","#FC8D62FF"))
 
@@ -614,14 +617,13 @@ p2 = re.corM.mean %>%
   scale_alpha_manual(values=c(.8,.6,0.6,0.6)) +
   scale_linetype_manual(values = c("solid","longdash","dotted","dotdash")) + 
   facet_grid(~ES, scales = "free") + 
-  #ylim(0, 1) + 
   scale_y_continuous(limits = c(0,1),breaks=c(0,.2,.4,.6,0.8,1)) +
   geom_hline(yintercept = 0.8, linetype = "dashed") +
   labs(x = NULL, y = "Power", title = "p = 400") + 
   theme_classic() + 
   theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=0.5),
         legend.position="top",legend.title = element_blank(),
-        legend.key.size = unit(1.8, 'cm')#,text = element_text(size = 13)
+        legend.key.size = unit(1.8, 'cm')
         ) +
   scale_color_manual(values=c("#EE4C97FF", "#5D8CA8FF", "#66C2A5FF","#FC8D62FF"))
 
@@ -644,8 +646,7 @@ p3 = re.corM.mean %>%
   #ylim(0, .4) + 
   scale_y_continuous(limits = c(0,0.4),breaks=c(0,0.05,0.1,0.2,0.3,0.4)) +
   geom_hline(yintercept = 0.05, linetype = "dashed") +
-  labs(x = NULL, y = "FDR"#, title = "p = 100"
-       ) + 
+  labs(x = NULL, y = "FDR") + 
   theme_classic() + 
   theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=0.5),
         legend.position="none",legend.title = element_blank(),
@@ -669,15 +670,13 @@ p4 = re.corM.mean %>%
   scale_alpha_manual(values=c(.8,.6,0.6,0.6)) +
   scale_linetype_manual(values = c("solid","longdash","dotted","dotdash")) + 
   facet_grid(~ES, scales = "free") + 
-  #ylim(0, .4) + 
   scale_y_continuous(limits = c(0,0.4),breaks=c(0,0.05,0.1,0.2,0.3,0.4)) +
   geom_hline(yintercept = 0.05, linetype = "dashed") +
-  labs(x = NULL, y = "FDR"#, title = "p = 100"
-       ) + 
+  labs(x = NULL, y = "FDR") + 
   theme_classic() + 
   theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=0.5),
         legend.position="none",legend.title = element_blank(),
-        legend.key.size = unit(1.8, 'cm')#,text = element_text(size = 13)
+        legend.key.size = unit(1.8, 'cm')
         ) +
   scale_color_manual(values=c("#EE4C97FF", "#5D8CA8FF", "#66C2A5FF","#FC8D62FF"))
 
