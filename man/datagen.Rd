@@ -35,5 +35,8 @@ The 6th-15th M variables (M6,M7,M8,M9,M10,M11,M12,M13,M14,M15) are set to be the
 Specifically, the first 15 coefficients of alpha are set to take some non-zero value a, the 6th to 20th coefficients of beta are set to take some non-zero value b, and all other alpha and beta coefficients are set to be 0.
 }
 \examples{
-set.seed(20205); datagen(n = 1000, p = 100, a = 0.5, b = 0.3, rho = 0.1)
+set.seed(20205); data = datagen(n = 1000, p = 100, a = 0.5, b = 0.3, rho = 0.1)
+head(data$X)
+head(data$Y)
+head(data$M)
 }

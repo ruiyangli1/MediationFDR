@@ -18,7 +18,10 @@
 #' @export
 #'
 #' @examples
-#' set.seed(20205); datagen(n = 1000, p = 100, a = 0.5, b = 0.3, rho = 0.1)
+#' set.seed(20205); data = datagen(n = 1000, p = 100, a = 0.5, b = 0.3, rho = 0.1)
+#' head(data$X)
+#' head(data$Y)
+#' head(data$M)
 datagen <- function(n, p, a, b, rho){
   alpha = rep(0,p); alpha[1:15] = a
   beta = rep(0,p); beta[6:20] = b
