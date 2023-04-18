@@ -2,3 +2,4 @@
 
 export(MediationFDR)
 export(datagen)
+export(datagen.counter)
