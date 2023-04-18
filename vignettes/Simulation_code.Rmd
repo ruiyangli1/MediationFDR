@@ -687,7 +687,7 @@ library(patchwork)
 
 ## Counter example 
 
-```{r counter_example, warning = FALSE, message = FALSE}
+```{r counter_example, warning = FALSE, message = FALSE, eval=FALSE}
 # load packages
 require(parallel) 
 require(doParallel) 
