@@ -1,9 +1,8 @@
 Package: MediationFDR
 Title: Mediator Selection Controlling For FDR
 Version: 1.0.0
-Authors@R: 
-    person("Ruiyang", "Li", , "rl3034@cumc.columbia.edu", role = c("aut", "cre"),
-           comment = c(ORCID = "YOUR-ORCID-ID"))
+Author: Ran Dai, Ruiyang Li, Seonjoo Lee, Ying Liu
+Maintainer: Ruiyang Li <rl3034@cumc.columbia.edu>
 Description: This package contains the function to select mediators while controlling for false discovery rate. 
 Depends:
     glmnet,
