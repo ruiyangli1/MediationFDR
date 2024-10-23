@@ -1,5 +1,5 @@
 Package: MediationFDR
-Title: Mediator Selection Controlling For FDR
+Title: Controlling false discovery rate for mediator selection in high-dimensional data
 Version: 1.0.0
 Author: Ran Dai, Ruiyang Li, Seonjoo Lee, Ying Liu
 Maintainer: Ruiyang Li <rl3034@cumc.columbia.edu>
